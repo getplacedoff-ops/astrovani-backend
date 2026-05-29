@@ -8,7 +8,7 @@ from app.config import (
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 class CircuitBreaker:
     def __init__(self, name: str, failure_threshold: int = 3, recovery_time: float = 60.0):
@@ -51,7 +51,7 @@ async def call_groq(messages: List[Dict[str, str]]) -> str:
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "llama-3.1-70b-versatile",
+        "model": "llama-3.3-70b-versatile",
         "messages": messages,
         "temperature": 0.65
     }
@@ -106,7 +106,7 @@ async def call_openrouter(messages: List[Dict[str, str]]) -> str:
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "meta-llama/llama-3.1-70b-instruct:free",
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
         "messages": messages,
         "temperature": 0.7
     }
