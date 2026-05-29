@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: astrovani-backend
+    runtime: docker
+    plan: free
+    branch: main
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        value: https://eathyedcvnfhfybuejks.supabase.co
+      - key: SUPABASE_KEY
+        value: sb_publishable_eQOf60_7U44uPjLMjkYojw_ldus4Oor
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        value: c3a459d4c21803b57736174da69b27c4
+      - key: CLOUDFLARE_R2_ACCESS_KEY
+        value: 11b34043b4a3d7114c9d5f6824208196
+      - key: CLOUDFLARE_R2_SECRET_KEY
+        sync: false
