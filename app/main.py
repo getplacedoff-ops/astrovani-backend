@@ -262,7 +262,7 @@ async def chat_consultation(payload: ChatRequest, db: Session = Depends(get_db))
     db.add(astrologer_message_row)
     
     # Update session activity stamp
-    new_session.last_interaction_at = func.now()
+    new_session.last_interaction_at = datetime.datetime.now(datetime.timezone.utc)
     db.commit()
 
     return ChatResponse(
