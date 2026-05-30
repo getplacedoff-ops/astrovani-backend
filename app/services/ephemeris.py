@@ -151,6 +151,43 @@ def get_panchangam(birth_datetime: datetime.datetime, lat: float, lng: float) ->
         "yamagandam": "09:00 - 10:30"
     }
 
+    # 6. Traditional Telugu Calendar Calculations
+    SAMVATSARAS = [
+        "Prabhava", "Vibhava", "Shukla", "Pramadoota", "Prajopti", "Angirasa", "Srimukha", "Bhava", "Yuva", "Dhatri",
+        "Eeswara", "Bahudhanya", "Pramathi", "Vikrama", "Vrusha", "Chitrabanu", "Subhanu", "Tharana", "Parthiva", "Vyaya",
+        "Sarvajithu", "Sarvadhari", "Virodhi", "Vikruthi", "Khara", "Nandhana", "Vijaya", "Jaya", "Manmadha", "Durmukhi",
+        "Hevilambi", "Vilambi", "Vikari", "Sarvari", "Plava", "Subhakruthu", "Sobhakruthu", "Krodhi", "Viswavasu", "Parabhava",
+        "Plavanga", "Keelaka", "Saumya", "Sadharana", "Virodhikruthu", "Paridhavi", "Pramadicha", "Ananda", "Rakshasa", "Nala",
+        "Pingala", "Kalayukthi", "Siddharthi", "Raudri", "Durmathi", "Dundubhi", "Rudhirodgari", "Raktakshi", "Krodhana", "Akshaya"
+    ]
+
+    TELUGU_MONTHS = [
+        "Chaitram", "Vaisakham", "Jyeshtham", "Ashadham", "Sravanam", "Bhadrapadam",
+        "Aswayujam", "Kartikam", "Margasiram", "Pushyam", "Magham", "Phalgunam"
+    ]
+
+    RUTHUVUS = [
+        "Vasanta Ruthuvu", "Grishma Ruthuvu", "Varsha Ruthuvu", "Sharad Ruthuvu", "Hemanta Ruthuvu", "Shishira Ruthuvu"
+    ]
+
+    # Calculate Telugu month index based on Sun's longitude relative to the Sun-Moon phase angle (diff)
+    month_idx = int(((sun_lon - diff) % 360.0) // 30.0 + 1) % 12
+    masam = TELUGU_MONTHS[month_idx]
+
+    # Season changes every 2 lunar months
+    ruthuvu = RUTHUVUS[month_idx // 2]
+
+    # Paksham is bright (first 15 tithis) or dark (remaining 15 tithis)
+    paksham = "Sukla Paksham" if tithi_index < 15 else "Krishna Paksham"
+
+    # Year calculation offset for Samvatsaram name cycle (Ugadi starts lunar year)
+    year_offset = birth_datetime.year
+    if month_idx >= 9 and birth_datetime.month <= 4:
+        samvatsaram_idx = (year_offset - 1988) % 60
+    else:
+        samvatsaram_idx = (year_offset - 1987) % 60
+    samvatsaram = SAMVATSARAS[samvatsaram_idx]
+
     return {
         "ayanamsa": "Lahiri",
         "positions": {
@@ -164,6 +201,12 @@ def get_panchangam(birth_datetime: datetime.datetime, lat: float, lng: float) ->
             "nakshatra": nakshatra,
             "yoga": yoga,
             "karana": karana
+        },
+        "telugu_calendar": {
+            "samvatsaram": samvatsaram,
+            "masam": masam,
+            "ruthuvu": ruthuvu,
+            "paksham": paksham
         },
         "auspicious_timings": auspicious_hours
     }
