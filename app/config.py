@@ -21,5 +21,5 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "NVIDIA_API_KEY_PLACEHOLDER")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "OPENROUTER_API_KEY_PLACEHOLDER")
 
 # --- Bypass Secrets ---
-# Master bypass key that validates strictly server-side
-CEO_BYPASS_CODE = "CEO-25-07-desk"
+# Master bypass key loaded from Render environment context
+CEO_BYPASS_CODE = os.getenv("CEO_BYPASS_CODE", "CEO_BYPASS_CODE_PLACEHOLDER")

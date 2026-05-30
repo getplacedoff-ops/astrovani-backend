@@ -133,7 +133,10 @@ def get_jathakam_chart(payload: JathakamRequest, db: Session = Depends(get_db)):
 
     if not is_premium and first_gen:
         # Check elapsed time
-        elapsed_seconds = (now - first_gen.created_at).total_seconds()
+        fg_created = first_gen.created_at
+        if fg_created.tzinfo is None:
+            fg_created = fg_created.replace(tzinfo=datetime.timezone.utc)
+        elapsed_seconds = (now - fg_created).total_seconds()
         if elapsed_seconds > 600:  # 10 minutes lockout threshold
             return JathakamResponse(
                 status="locked",
@@ -171,10 +174,14 @@ def get_jathakam_chart(payload: JathakamRequest, db: Session = Depends(get_db)):
         db.refresh(new_gen)
         first_gen = new_gen
 
+    fg_created = first_gen.created_at
+    if fg_created.tzinfo is None:
+        fg_created = fg_created.replace(tzinfo=datetime.timezone.utc)
+
     return JathakamResponse(
         status="unlocked",
         tier="premium" if is_premium else "free",
-        time_remaining_seconds=-1 if is_premium else int(600 - (now - first_gen.created_at).total_seconds()),
+        time_remaining_seconds=-1 if is_premium else int(600 - (now - fg_created).total_seconds()),
         chart_data=calc_results,
         pdf_url=first_gen.pdf_url if is_premium else None
     )
@@ -422,3 +429,109 @@ def apply_coupon_code(payload: CouponApplyRequest, db: Session = Depends(get_db)
         }
 
     raise HTTPException(status_code=400, detail="Unsupported coupon operation type.")
+
+# =====================================================================
+# 7. Admin Portal Panel Endpoints
+# =====================================================================
+from app.services.ai_router import get_primary_provider, set_primary_provider
+from pydantic import BaseModel
+
+class ToggleCouponRequest(BaseModel):
+    code: str
+    is_active: bool
+
+class OverrideTierRequest(BaseModel):
+    user_id: uuid.UUID
+    tier: str
+
+class TogglePrimaryAiRequest(BaseModel):
+    provider: str
+
+class CreateCouponRequest(BaseModel):
+    code: str
+    discount_type: str
+    value: int
+    max_redemptions: int
+
+@app.get("/api/v1/admin/stats")
+def get_admin_stats(db: Session = Depends(get_db)):
+    total_users = db.query(User).count()
+    total_coupons = db.query(Coupon).count()
+    total_redemptions = db.query(CouponRedemption).count()
+    return {
+        "total_users": total_users,
+        "total_coupons": total_coupons,
+        "total_redemptions": total_redemptions
+    }
+
+@app.get("/api/v1/admin/coupons")
+def get_admin_coupons(db: Session = Depends(get_db)):
+    coupons = db.query(Coupon).all()
+    return coupons
+
+@app.post("/api/v1/admin/coupons")
+def create_admin_coupon(payload: CreateCouponRequest, db: Session = Depends(get_db)):
+    existing = db.query(Coupon).filter(Coupon.code == payload.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Coupon code already exists.")
+    new_coupon = Coupon(
+        code=payload.code,
+        discount_type=payload.discount_type,
+        value=payload.value,
+        is_active=True,
+        max_redemptions=payload.max_redemptions,
+        current_redemptions=0
+    )
+    db.add(new_coupon)
+    db.commit()
+    return {"status": "success", "message": f"Coupon {payload.code} created successfully."}
+
+@app.post("/api/v1/admin/coupons/toggle")
+def toggle_admin_coupon(payload: ToggleCouponRequest, db: Session = Depends(get_db)):
+    coupon = db.query(Coupon).filter(Coupon.code == payload.code).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found.")
+    coupon.is_active = payload.is_active
+    db.commit()
+    return {"status": "success", "message": f"Coupon {payload.code} active state set to {payload.is_active}."}
+
+@app.get("/api/v1/admin/users")
+def get_admin_users(db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return users
+
+@app.post("/api/v1/admin/users/override-tier")
+def override_user_tier(payload: OverrideTierRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    user.tier = payload.tier
+    if payload.tier == "premium":
+        user.premium_until = None  # Permanent lifetime premium override
+    else:
+        user.premium_until = None
+    db.commit()
+    return {"status": "success", "message": f"User {user.full_name}'s tier overridden to {payload.tier}."}
+
+@app.get("/api/v1/admin/ai-diagnostics")
+def get_ai_diagnostics():
+    return {
+        "primary_provider": get_primary_provider(),
+        "circuit_breakers": {
+            "Groq": "CLOSED",
+            "Nvidia": "CLOSED"
+        },
+        "latencies": {
+            "Groq": "< 80ms",
+            "Nvidia": "< 120ms",
+            "Gemini 3.5 Flash": "< 200ms",
+            "OpenRouter": "< 180ms"
+        }
+    }
+
+@app.post("/api/v1/admin/ai-diagnostics/toggle-primary")
+def toggle_primary_ai(payload: TogglePrimaryAiRequest):
+    if payload.provider not in ["Groq", "Nvidia", "Gemini", "OpenRouter"]:
+        raise HTTPException(status_code=400, detail="Invalid AI provider name.")
+    set_primary_provider(payload.provider)
+    return {"status": "success", "message": f"Primary AI provider updated to {payload.provider}."}

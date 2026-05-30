@@ -36,17 +36,25 @@ KARANAS = [
 ]
 
 def calculate_julian_day(dt: datetime.datetime) -> float:
-    """Converts a standard datetime object into Julian Day."""
+    """Converts a standard datetime object into Julian Day after converting it to UTC."""
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo("Asia/Kolkata")
+    
+    # 1. Localize naive datetime to Asia/Kolkata baseline
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=kolkata_tz)
+    
+    # 2. Convert to UTC timezone
+    utc_time = dt.astimezone(datetime.timezone.utc)
+    
     if SWISSEPH_AVAILABLE:
         # Calculate Julian Day using Swiss Ephemeris
-        utc_time = dt - dt.utcoffset() if dt.utcoffset() else dt
-        # swe.julday takes (year, month, day, hour_decimal)
         hour_decimal = utc_time.hour + utc_time.minute/60.0 + utc_time.second/3600.0
         return swe.julday(utc_time.year, utc_time.month, utc_time.day, hour_decimal)
     else:
         # Fallback simplified Julian Day formula
-        y, m, d = dt.year, dt.month, dt.day
-        hour_decimal = dt.hour + dt.minute/60.0 + dt.second/3600.0
+        y, m, d = utc_time.year, utc_time.month, utc_time.day
+        hour_decimal = utc_time.hour + utc_time.minute/60.0 + utc_time.second/3600.0
         if m <= 2:
             y -= 1
             m += 12
@@ -60,9 +68,16 @@ def get_panchangam(birth_datetime: datetime.datetime, lat: float, lng: float) ->
     Computes Telugu Panchangam elements: Tithi, Vara, Nakshatra, Yoga, and Karana.
     Applies Lahiri Ayanamsa.
     """
-    # 1. Determine Vara (Day of week is independent of ephemeris library)
-    # python weekday() returns 0 for Monday, 6 for Sunday
-    # Our VARAS list starts with Sunday (Vara index 0 = Sunday)
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo("Asia/Kolkata")
+    
+    # Force Asia/Kolkata baseline for local Vara and Auspicious timings calculations
+    if birth_datetime.tzinfo is None:
+        birth_datetime = birth_datetime.replace(tzinfo=kolkata_tz)
+    else:
+        birth_datetime = birth_datetime.astimezone(kolkata_tz)
+        
+    # 1. Determine Vara in local IST timezone
     weekday_idx = (birth_datetime.weekday() + 1) % 7
     vara = VARAS[weekday_idx]
 

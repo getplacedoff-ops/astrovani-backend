@@ -45,6 +45,18 @@ class CircuitBreaker:
 groq_breaker = CircuitBreaker("Groq")
 nvidia_breaker = CircuitBreaker("Nvidia")
 
+PRIMARY_PROVIDER = "Groq"
+
+def get_primary_provider() -> str:
+    global PRIMARY_PROVIDER
+    return PRIMARY_PROVIDER
+
+def set_primary_provider(provider: str):
+    global PRIMARY_PROVIDER
+    if provider in ["Groq", "Nvidia", "Gemini", "OpenRouter"]:
+        PRIMARY_PROVIDER = provider
+        print(f"[AI Router] Primary AI provider manually set to: {PRIMARY_PROVIDER}")
+
 async def call_groq(messages: List[Dict[str, str]]) -> str:
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -123,6 +135,7 @@ async def execute_astrology_query(
 ) -> Tuple[str, str]:
     """
     Executes user query utilizing safety-first fallbacks and circuit breakers.
+    Dynamically orders active trials using primary provider configuration.
     Returns: Tuple of (ResponseContent, ProviderName)
     """
     system_instruction = (
@@ -132,6 +145,8 @@ async def execute_astrology_query(
         "- Telugu: if they write in Telugu script. "
         "- Tenglish: if they write Telugu words in English/Latin letters (e.g. 'naaku job eppudu vastundi?'). "
         "Strict Rule: NEVER reveal that you are an AI, chatbot, or Large Language Model. You are a human Pandit/Purohit. "
+        "Response constraints: Do NOT use markdown headers, bullet-point lists, or summaries. Keep your response brief "
+        "(1-3 sentences maximum), warm, conversational, and culturally empathetic using Vedic phrasing. "
         "Formulate predictions using planetary transits, dasha cycles, and Vedic alignment."
     )
 
@@ -141,39 +156,50 @@ async def execute_astrology_query(
         messages.extend(chat_history)
     messages.append({"role": "user", "content": user_query})
 
-    # --- ROUTING TRIAL 1: Groq (Primary) ---
-    if groq_breaker.can_execute():
-        try:
-            res = await call_groq(messages)
-            groq_breaker.record_success()
-            return res, "Groq Llama-3.1"
-        except Exception as e:
-            groq_breaker.record_failure()
-            print(f"[AI Router] Groq request failed: {e}")
+    # Compile dynamic prioritization sequence
+    trials_order = ["Groq", "Nvidia", "Gemini", "OpenRouter"]
+    primary = get_primary_provider()
+    if primary in trials_order:
+        trials_order.remove(primary)
+        trials_order.insert(0, primary)
 
-    # --- ROUTING TRIAL 2: Nvidia API (Secondary) ---
-    if nvidia_breaker.can_execute():
-        try:
-            res = await call_nvidia(messages)
-            nvidia_breaker.record_success()
-            return res, "NVIDIA Llama-3.1"
-        except Exception as e:
-            nvidia_breaker.record_failure()
-            print(f"[AI Router] Nvidia request failed: {e}")
+    last_error = None
+    for provider in trials_order:
+        if provider == "Groq":
+            if groq_breaker.can_execute():
+                try:
+                    res = await call_groq(messages)
+                    groq_breaker.record_success()
+                    return res, "Groq Llama-3.1"
+                except Exception as e:
+                    groq_breaker.record_failure()
+                    last_error = e
+                    print(f"[AI Router] Groq request failed: {e}")
+        elif provider == "Nvidia":
+            if nvidia_breaker.can_execute():
+                try:
+                    res = await call_nvidia(messages)
+                    nvidia_breaker.record_success()
+                    return res, "NVIDIA Llama-3.1"
+                except Exception as e:
+                    nvidia_breaker.record_failure()
+                    last_error = e
+                    print(f"[AI Router] Nvidia request failed: {e}")
+        elif provider == "Gemini":
+            try:
+                # Formulate Gemini string context
+                chat_context = "\n".join([f"{m['role']}: {m['content']}" for m in messages if m['role'] != 'system'])
+                res = await call_gemini(system_instruction, chat_context)
+                return res, "Gemini 2.5 Flash"
+            except Exception as e:
+                last_error = e
+                print(f"[AI Router] Gemini request failed: {e}")
+        elif provider == "OpenRouter":
+            try:
+                res = await call_openrouter(messages)
+                return res, "OpenRouter Fallback"
+            except Exception as e:
+                last_error = e
+                print(f"[AI Router] OpenRouter request failed: {e}")
 
-    # --- ROUTING TRIAL 3: Google Gemini 1.5 Pro (Tertiary) ---
-    try:
-        # Formulate Gemini string context
-        chat_context = "\n".join([f"{m['role']}: {m['content']}" for m in messages if m['role'] != 'system'])
-        res = await call_gemini(system_instruction, chat_context)
-        return res, "Gemini 1.5 Pro"
-    except Exception as e:
-        print(f"[AI Router] Gemini request failed: {e}")
-
-    # --- ROUTING TRIAL 4: OpenRouter (Final Failover) ---
-    try:
-        res = await call_openrouter(messages)
-        return res, "OpenRouter Fallback"
-    except Exception as e:
-        print(f"[AI Router] OpenRouter request failed: {e}")
-        raise RuntimeError("All upstream AI astrology models failed to process query.")
+    raise RuntimeError(f"All upstream AI astrology models failed to process query. Last error: {str(last_error)}")

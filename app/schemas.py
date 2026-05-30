@@ -20,7 +20,16 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     phone_number: str
+    phone_country_code: str
+    email: Optional[EmailStr] = None
     full_name: str
+    gender: str
+    birth_date: date
+    birth_time: time
+    birth_latitude: float
+    birth_longitude: float
+    birth_place_name: str
+    timezone: str
     tier: str
     premium_until: Optional[datetime] = None
     created_at: datetime

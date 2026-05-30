@@ -31,10 +31,12 @@ def generate_astrologer_pool():
         surname = random_gen.choice(SURNAMES)
         
         # Rule Exclusions:
-        # Avoid title conflicts (e.g., Acharya as prefix and Siddhanta/Charyulu title suffixes)
-        if prefix == "Acharya" and surname in ["Siddhanta", "Charyulu"]:
+        # Avoid clashing titles (e.g., Acharya as prefix and Siddhanta/Charyulu/Sastry suffixes)
+        if prefix == "Acharya" and surname in ["Siddhanta", "Charyulu", "Sastry", "Somayajulu", "Avadhani"]:
             continue
-        if prefix == "Siddhanti" and surname == "Siddhanta":
+        if prefix == "Siddhanti" and surname in ["Siddhanta", "Sastry", "Avadhani"]:
+            continue
+        if prefix == "Purohit" and surname in ["Raju"]:
             continue
         if "Sastry" in first_name and surname == "Sastry":
             continue

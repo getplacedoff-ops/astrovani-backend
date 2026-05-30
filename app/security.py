@@ -7,21 +7,21 @@ PROFANITY_PATTERNS = re.compile(
     re.IGNORECASE
 )
 
-# Crisis keywords mapping (suicide, self-harm, terminal illness diagnostics)
+# Crisis keywords mapping (suicide, self-harm, terminal illness, critical illness, and depression)
 CRISIS_PATTERNS = re.compile(
-    r"(chavali|chastanu|kill myself|suicide|chavu|atmahathya|die|cancer outcome|die of disease|harm myself|end my life|slash wrists|hanging)",
+    r"(chavali|chastanu|kill myself|suicide|chavu|atmahathya|die|cancer outcome|die of disease|harm myself|end my life|slash wrists|hanging|critical illness|terminal|kill me|depressed|depression|mental crisis|heart attack|illness outcome|hospitalize)",
     re.IGNORECASE
 )
 
 # Legal outcome prediction prevention
 LEGAL_PATTERNS = re.compile(
-    r"\b(lawsuit|court verdict|judge decision|litigation|criminal case|jail term|prison sentence|court case|hearing result|legal outcome)\b",
+    r"\b(lawsuit|court verdict|judge decision|litigation|criminal case|jail term|prison sentence|court case|hearing result|legal outcome|litigate|sue page|suing)\b",
     re.IGNORECASE
 )
 
 # Financial gambling ticker restrictions
 TICKER_PATTERNS = re.compile(
-    r"\b(buy stock|exact ticker|btc price|dogecoin|lottery numbers|jackpot numbers|gamble option|which stock to buy|crypto investment|lottery ticket)\b",
+    r"\b(buy stock|exact ticker|btc price|dogecoin|lottery numbers|jackpot numbers|gamble option|which stock to buy|crypto investment|lottery ticket|stock tips|stock advice|shares|portfolio|gamble tips|invest in)\b",
     re.IGNORECASE
 )
 
